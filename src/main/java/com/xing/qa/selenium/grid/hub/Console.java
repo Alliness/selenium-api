@@ -42,10 +42,15 @@ public class Console extends RegistryBasedServlet {
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         try {
-            if ("/requests".equals(req.getPathInfo())) {
-                sendJson(pendingRequests(), req, resp);
-            } else {
-                sendJson(status(), req, resp);
+            switch (req.getPathInfo()) {
+                case "/requests":
+                    sendJson(pendingRequests(), req, resp);
+                    break;
+                case "/nodes":
+                    sendJson(nodes(), req, resp);
+                    break;
+                default:
+                    sendJson(status(), req, resp);
             }
         } catch (JSONException je) {
             resp.setContentType("application/json");
@@ -58,7 +63,7 @@ public class Console extends RegistryBasedServlet {
                 error.put("location", je.getStackTrace());
                 error.write(resp.getWriter());
             } catch (JSONException e1) {
-              log.log(Level.WARNING, "Failed to write error response", e1);
+                log.log(Level.WARNING, "Failed to write error response", e1);
             }
 
         }
@@ -81,13 +86,13 @@ public class Console extends RegistryBasedServlet {
     }
 
     protected JSONObject pendingRequests() throws JSONException {
-        JSONObject pending = new JSONObject();
-        int p = getRegistry().getNewSessionRequestCount();
-        List<Map<String,?>> desired;
+        JSONObject           pending = new JSONObject();
+        int                  p       = getRegistry().getNewSessionRequestCount();
+        List<Map<String, ?>> desired;
 
         if (p > 0) {
             desired = new ArrayList<Map<String, ?>>();
-            for (Capabilities c: getRegistry().getDesiredCapabilities()) {
+            for (Capabilities c : getRegistry().getDesiredCapabilities()) {
                 desired.add(c.asMap());
             }
         } else {
@@ -102,27 +107,45 @@ public class Console extends RegistryBasedServlet {
 
     protected JSONObject status()
             throws JSONException {
-            JSONObject status = new JSONObject();
+        JSONObject status = new JSONObject();
 
-            Hub h = getRegistry().getHub();
+        Hub h = getRegistry().getHub();
 
-            List<JSONObject> nodes = new ArrayList<JSONObject>();
+        List<JSONObject> nodes = new ArrayList<JSONObject>();
 
-            for (RemoteProxy proxy : getRegistry().getAllProxies()) {
-                try {
-                    JSONRenderer beta = new WebProxyJsonRenderer(proxy);
-                    nodes.add(beta.render());
-                } catch (Exception e) {}
+        for (RemoteProxy proxy : getRegistry().getAllProxies()) {
+            try {
+                JSONRenderer beta = new WebProxyJsonRenderer(proxy);
+                nodes.add(beta.render());
+            } catch (Exception e) {
             }
+        }
 
-            status.put("version", coreVersion);
-            status.put("configuration", getRegistry().getConfiguration().toJson().getAsJsonObject().entrySet());
-            status.put("host", h.getConfiguration().host);
-            status.put("port", h.getConfiguration().port);
-            status.put("registration_url", h.getRegistrationURL());
-            status.put("nodes", nodes);
-            status.put("requests", pendingRequests());
+        status.put("version", coreVersion);
+        status.put("configuration", getRegistry().getConfiguration().toJson().getAsJsonObject().entrySet());
+        status.put("host", h.getConfiguration().host);
+        status.put("port", h.getConfiguration().port);
+        status.put("registration_url", h.getRegistrationURL());
+        status.put("nodes", nodes);
+        status.put("requests", pendingRequests());
 
-            return status;
+        return status;
+    }
+
+    protected JSONObject nodes() throws JSONException {
+        JSONObject result = new JSONObject();
+
+        List<JSONObject> nodes = new ArrayList<JSONObject>();
+
+        for (RemoteProxy proxy : getRegistry().getAllProxies()) {
+            try {
+                JSONRenderer beta = new WebProxyJsonRenderer(proxy);
+                nodes.add(beta.render());
+            } catch (Exception e) {
+            }
+        }
+
+        result.put("nodes", nodes);
+        return result;
     }
 }
