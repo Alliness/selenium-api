@@ -13,7 +13,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.Writer;
 import java.util.*;
 import java.util.logging.Level;
@@ -49,6 +48,9 @@ public class Console extends RegistryBasedServlet {
                 case "/nodes":
                     sendJson(nodes(), req, resp);
                     break;
+                case "/grid":
+                    sendJson(grid(), req, resp);
+                    break;
                 default:
                     sendJson(status(), req, resp);
             }
@@ -74,7 +76,7 @@ public class Console extends RegistryBasedServlet {
         resp.setContentType("application/json");
         resp.setCharacterEncoding("UTF-8");
         resp.setStatus(200);
-        Writer w = null;
+        Writer w;
         try {
             w = resp.getWriter();
             jo.write(w);
@@ -91,7 +93,7 @@ public class Console extends RegistryBasedServlet {
         List<Map<String, ?>> desired;
 
         if (p > 0) {
-            desired = new ArrayList<Map<String, ?>>();
+            desired = new ArrayList<>();
             for (Capabilities c : getRegistry().getDesiredCapabilities()) {
                 desired.add(c.asMap());
             }
@@ -111,13 +113,14 @@ public class Console extends RegistryBasedServlet {
 
         Hub h = getRegistry().getHub();
 
-        List<JSONObject> nodes = new ArrayList<JSONObject>();
+        List<JSONObject> nodes = new ArrayList<>();
 
         for (RemoteProxy proxy : getRegistry().getAllProxies()) {
             try {
                 JSONRenderer beta = new WebProxyJsonRenderer(proxy);
                 nodes.add(beta.render());
             } catch (Exception e) {
+                e.printStackTrace();
             }
         }
 
@@ -132,16 +135,32 @@ public class Console extends RegistryBasedServlet {
         return status;
     }
 
+    protected JSONObject grid() throws JSONException {
+        JSONObject status = new JSONObject();
+
+        Hub h = getRegistry().getHub();
+
+        status.put("version", coreVersion);
+        status.put("configuration", getRegistry().getConfiguration().toJson().getAsJsonObject().entrySet());
+        status.put("host", h.getConfiguration().host);
+        status.put("port", h.getConfiguration().port);
+        status.put("registration_url", h.getRegistrationURL());
+        status.put("requests", pendingRequests());
+
+        return status;
+    }
+
     protected JSONObject nodes() throws JSONException {
         JSONObject result = new JSONObject();
 
-        List<JSONObject> nodes = new ArrayList<JSONObject>();
+        List<JSONObject> nodes = new ArrayList<>();
 
         for (RemoteProxy proxy : getRegistry().getAllProxies()) {
             try {
                 JSONRenderer beta = new WebProxyJsonRenderer(proxy);
                 nodes.add(beta.render());
             } catch (Exception e) {
+                e.printStackTrace();
             }
         }
 
